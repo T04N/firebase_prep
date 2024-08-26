@@ -19,6 +19,8 @@ class GroceryList extends StatefulWidget {
 
 class _GroceryListState extends State<GroceryList> {
   List<GroceryItem> _groceryList = [];
+  var _isLoading = true;
+  var _error ;
 
 
   @override
@@ -32,7 +34,18 @@ class _GroceryListState extends State<GroceryList> {
     final url = Uri.https(
         "flutter-prep-f989c-default-rtdb.firebaseio.com", "shopping-list.json");
     final response = await http.get(url);
-    print(response.body);
+    if (response.statusCode > 400) {
+      setState(() {
+      _error = "have some issue when getching data ";
+      });
+    };
+print(response.body);
+    if (response.body == 'null') {
+      setState(() {
+        _isLoading= false;
+      });
+      return;
+    }
 
     final List<GroceryItem> _temporaryList = [];
     final Map<String, dynamic> listData =
@@ -60,17 +73,40 @@ class _GroceryListState extends State<GroceryList> {
   Future<void> _addItem(BuildContext context) async {
     final newGrocery = await Navigator.of(context).push(
         MaterialPageRoute(builder: (ctx) => NewItem()));
+
+if (newGrocery == Null){
+  print("null new");
+  return;
+}
+    setState(() {
+      _groceryList.add(newGrocery);
+   });
+
+
   }
 
-  void _removeItem(GroceryItem) {
+  Future<void> _removeItem(GroceryItem item) async {
+    final index  = _groceryList.indexOf(item);
     setState(() {
-      _groceryList.remove(GroceryItem);
+      _groceryList.remove(item);
     });
+    final url = Uri.https(
+        "flutter-prep-f989c-default-rtdb.firebaseio.com", "shopping-list/${item.id}.json");
+    final response  = await http.delete(url);
+    if (response.statusCode >= 400 )  {
+      _groceryList.insert(index, item) ;
+    }
+
   }
 
   @override
   Widget build(BuildContext context) {
     Widget content = const Center(child: Text("No items add yet"),);
+
+    if (_isLoading) {
+      content =const Center(child: CircularProgressIndicator());
+    }
+
     if (_groceryList.isNotEmpty) {
       content = ListView.builder(
         itemCount: _groceryList.length,
